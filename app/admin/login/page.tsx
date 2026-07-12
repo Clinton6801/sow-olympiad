@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect } from 'react';
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
