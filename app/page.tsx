@@ -206,90 +206,88 @@ export default function Home() {
             {HERO_SUBHEADING}
           </p>
 
-          {/* Level-up Path - Winding SVG Bezier Curve (lg+ only) */}
-          <div className="hidden lg:flex mb-8 sm:mb-12 items-center justify-center overflow-x-auto pb-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
-            <div className="w-full max-w-4xl flex justify-between items-center px-2 sm:px-4">
-              {/* SVG Curved Path */}
-              <svg 
-                viewBox="0 0 1000 120" 
-                className="absolute left-0 right-0 w-full h-24 pointer-events-none"
-                style={{ maxWidth: '100%', height: 'auto' }}
-              >
-                <defs>
-                  <style>{`
-                    @media (prefers-reduced-motion: no-preference) {
-                      .level-path {
-                        stroke-dasharray: 1000;
-                        stroke-dashoffset: 1000;
-                        animation: drawPath 2s ease-out forwards;
+          {/* Level-up Path - Winding SVG on lg+, Grid on smaller screens */}
+          <div className="mb-8 sm:mb-12 animate-fade-in px-2 sm:px-4" style={{ animationDelay: '200ms' }}>
+            {/* Large screens (1024px+): Single row with SVG connector */}
+            <div className="hidden lg:flex items-center justify-center w-full max-w-4xl mx-auto">
+              <div className="w-full flex justify-between items-center relative">
+                {/* SVG Curved Path */}
+                <svg 
+                  viewBox="0 0 1000 120" 
+                  className="absolute left-0 right-0 w-full h-24 pointer-events-none"
+                  style={{ maxWidth: '100%', height: 'auto' }}
+                >
+                  <defs>
+                    <style>{`
+                      @media (prefers-reduced-motion: no-preference) {
+                        .level-path {
+                          stroke-dasharray: 1000;
+                          stroke-dashoffset: 1000;
+                          animation: drawPath 2s ease-out forwards;
+                        }
+                        @keyframes drawPath {
+                          to { stroke-dashoffset: 0; }
+                        }
                       }
-                      @keyframes drawPath {
-                        to { stroke-dashoffset: 0; }
+                      @media (prefers-reduced-motion: reduce) {
+                        .level-path {
+                          stroke-dashoffset: 0;
+                        }
                       }
-                    }
-                    @media (prefers-reduced-motion: reduce) {
-                      .level-path {
-                        stroke-dashoffset: 0;
-                      }
-                    }
-                  `}</style>
-                </defs>
-                <path
-                  d={pathData}
-                  stroke="#D4D8E0"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                  className="level-path"
-                />
-              </svg>
+                    `}</style>
+                  </defs>
+                  <path
+                    d={pathData}
+                    stroke="#D4D8E0"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinecap="round"
+                    className="level-path"
+                  />
+                </svg>
 
-              {/* Nodes - Single Row (lg+) */}
-              <div className="relative z-10 w-full flex justify-between gap-1 sm:gap-2">
-                {sections.map((section, idx) => {
-                  const IconComponent = getIconComponent(section.icon_name);
-                  const color = section.tier_color || '#14213D';
-                  
-                  return (
-                    <Link
-                      key={section.id} 
-                      href={`/practice?section=${section.id}`}
-                      className="flex flex-col items-center group flex-1"
-                      style={{
-                        animation: `fadeInScale 0.6s ease-out forwards`,
-                        animationDelay: `${300 + idx * 50}ms`,
-                      } as React.CSSProperties}
-                    >
-                      {/* Node circle with icon */}
-                      <div 
-                        className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-14 lg:h-14 rounded-full flex items-center justify-center mb-1 sm:mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
-                        style={{ 
-                          backgroundColor: color,
-                          opacity: 0.95,
-                        }}
-                        role="button"
-                        tabIndex={0}
+                {/* Nodes - single row */}
+                <div className="relative z-10 w-full flex justify-between gap-2">
+                  {sections.map((section, idx) => {
+                    const IconComponent = getIconComponent(section.icon_name);
+                    const color = section.tier_color || '#14213D';
+                    
+                    return (
+                      <Link
+                        key={section.id} 
+                        href={`/practice?section=${section.id}`}
+                        className="flex flex-col items-center group flex-1"
+                        style={{
+                          animation: `fadeInScale 0.6s ease-out forwards`,
+                          animationDelay: `${300 + idx * 50}ms`,
+                        } as React.CSSProperties}
                       >
-                        <IconComponent size={20} className="sm:hidden" stroke={2} color="white" />
-                        <IconComponent size={24} className="hidden sm:block md:hidden" stroke={2} color="white" />
-                        <IconComponent size={28} className="hidden md:block lg:block" stroke={2} color="white" />
-                      </div>
-                      
-                      {/* Label - full section name */}
-                      <p className="text-xs sm:text-xs md:text-sm lg:text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[70px] sm:max-w-[80px] lg:max-w-[90px] leading-tight">
-                        {section.name}
-                      </p>
-                    </Link>
-                  );
-                })}
+                        {/* Node circle with icon */}
+                        <div 
+                          className="w-14 h-14 rounded-full flex items-center justify-center mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
+                          style={{ 
+                            backgroundColor: color,
+                            opacity: 0.95,
+                          }}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <IconComponent size={28} stroke={2} color="white" />
+                        </div>
+                        
+                        {/* Label - full section name */}
+                        <p className="text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[80px] leading-tight">
+                          {section.name}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Level-up Path - Wrapped Grid (below lg) */}
-          <div className="lg:hidden mb-8 sm:mb-12 flex items-center justify-center animate-fade-in" style={{ animationDelay: '200ms' }}>
-            <div className="w-full max-w-2xl px-2 sm:px-4">
-              {/* Grid: 3 columns, 2 rows - no SVG path */}
+            {/* Tablet and smaller (below 1024px): 2x3 Grid layout */}
+            <div className="lg:hidden w-full max-w-2xl mx-auto">
               <div className="grid grid-cols-3 gap-4 sm:gap-6">
                 {sections.map((section, idx) => {
                   const IconComponent = getIconComponent(section.icon_name);
@@ -307,7 +305,7 @@ export default function Home() {
                     >
                       {/* Node circle with icon */}
                       <div 
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
                         style={{ 
                           backgroundColor: color,
                           opacity: 0.95,
@@ -315,12 +313,12 @@ export default function Home() {
                         role="button"
                         tabIndex={0}
                       >
-                        <IconComponent size={24} className="sm:hidden" stroke={2} color="white" />
-                        <IconComponent size={28} className="hidden sm:block" stroke={2} color="white" />
+                        <IconComponent size={20} className="sm:hidden" stroke={2} color="white" />
+                        <IconComponent size={24} className="hidden sm:block" stroke={2} color="white" />
                       </div>
                       
-                      {/* Label - stacked below icon */}
-                      <p className="text-xs sm:text-sm font-display font-semibold text-ink-navy text-center leading-tight">
+                      {/* Label - stacked, centered */}
+                      <p className="text-xs sm:text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[70px] sm:max-w-[80px] leading-tight">
                         {section.name}
                       </p>
                     </Link>
