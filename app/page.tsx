@@ -206,8 +206,8 @@ export default function Home() {
             {HERO_SUBHEADING}
           </p>
 
-          {/* Level-up Path - Winding SVG Bezier Curve */}
-          <div className="mb-8 sm:mb-12 flex items-center justify-center overflow-x-auto pb-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
+          {/* Level-up Path - Winding SVG Bezier Curve (lg+ only) */}
+          <div className="hidden lg:flex mb-8 sm:mb-12 items-center justify-center overflow-x-auto pb-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
             <div className="w-full max-w-4xl flex justify-between items-center px-2 sm:px-4">
               {/* SVG Curved Path */}
               <svg 
@@ -244,7 +244,7 @@ export default function Home() {
                 />
               </svg>
 
-              {/* Nodes */}
+              {/* Nodes - Single Row (lg+) */}
               <div className="relative z-10 w-full flex justify-between gap-1 sm:gap-2">
                 {sections.map((section, idx) => {
                   const IconComponent = getIconComponent(section.icon_name);
@@ -262,7 +262,7 @@ export default function Home() {
                     >
                       {/* Node circle with icon */}
                       <div 
-                        className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mb-1 sm:mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
+                        className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-14 lg:h-14 rounded-full flex items-center justify-center mb-1 sm:mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
                         style={{ 
                           backgroundColor: color,
                           opacity: 0.95,
@@ -272,11 +272,55 @@ export default function Home() {
                       >
                         <IconComponent size={20} className="sm:hidden" stroke={2} color="white" />
                         <IconComponent size={24} className="hidden sm:block md:hidden" stroke={2} color="white" />
-                        <IconComponent size={28} className="hidden md:block" stroke={2} color="white" />
+                        <IconComponent size={28} className="hidden md:block lg:block" stroke={2} color="white" />
                       </div>
                       
                       {/* Label - full section name */}
-                      <p className="text-xs sm:text-xs md:text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[70px] sm:max-w-[80px] leading-tight">
+                      <p className="text-xs sm:text-xs md:text-sm lg:text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[70px] sm:max-w-[80px] lg:max-w-[90px] leading-tight">
+                        {section.name}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Level-up Path - Wrapped Grid (below lg) */}
+          <div className="lg:hidden mb-8 sm:mb-12 flex items-center justify-center animate-fade-in" style={{ animationDelay: '200ms' }}>
+            <div className="w-full max-w-2xl px-2 sm:px-4">
+              {/* Grid: 3 columns, 2 rows - no SVG path */}
+              <div className="grid grid-cols-3 gap-4 sm:gap-6">
+                {sections.map((section, idx) => {
+                  const IconComponent = getIconComponent(section.icon_name);
+                  const color = section.tier_color || '#14213D';
+                  
+                  return (
+                    <Link
+                      key={section.id} 
+                      href={`/practice?section=${section.id}`}
+                      className="flex flex-col items-center group"
+                      style={{
+                        animation: `fadeInScale 0.6s ease-out forwards`,
+                        animationDelay: `${300 + idx * 50}ms`,
+                      } as React.CSSProperties}
+                    >
+                      {/* Node circle with icon */}
+                      <div 
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
+                        style={{ 
+                          backgroundColor: color,
+                          opacity: 0.95,
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <IconComponent size={24} className="sm:hidden" stroke={2} color="white" />
+                        <IconComponent size={28} className="hidden sm:block" stroke={2} color="white" />
+                      </div>
+                      
+                      {/* Label - stacked below icon */}
+                      <p className="text-xs sm:text-sm font-display font-semibold text-ink-navy text-center leading-tight">
                         {section.name}
                       </p>
                     </Link>
