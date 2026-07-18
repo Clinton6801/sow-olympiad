@@ -251,8 +251,20 @@ export default function AdminQuestionBank() {
 
   const downloadTemplate = () => {
     const template = `section,round_type,difficulty_tier,content,answer_type,option_a,option_b,option_c,option_d,correct_answer,points
-Little Maths Sprout,grid,easy,What is 2+2?,mcq,3,4,5,6,4,1
-Rising Maths Explorers,sprint,,Solve for x: x + 5 = 12,numeric,,,,,7,1`;
+Number Sprouts,grid,easy,What is 2+2?,mcq,3,4,5,6,4,1
+Counting Champions,grid,medium,What is 5+3?,mcq,7,8,9,10,8,1
+Math Explorers,grid,easy,What is 10-3?,mcq,6,7,8,9,7,1
+Number Navigators,tiered,easy,Solve: x + 2 = 5,numeric,,,,,3,1
+Equation Builders,tiered,medium,Solve: 2x = 10,numeric,,,,,5,1
+Logic Leaders,sprint,,What is 8 ÷ 2?,numeric,,,,,4,1
+Problem Solvers,grid,hard,What is 15% of 200?,mcq,25,30,35,40,30,1
+Math Mavericks,sprint,,What is 100 - 45?,mcq,50,55,60,65,55,1
+Junior Analysts,grid,medium,What is 7 × 6?,mcq,40,41,42,43,42,1
+Algebra Masters,tiered,hard,What is log₁₀(100)?,numeric,,,,,2,1
+Olympiad Challengers,grid,hard,What is the square root of 144?,mcq,10,11,12,13,12,1
+Elite Mathematicians,sprint,,Solve: x² = 25,numeric,,,,,5,1
+Math Titans,grid,hard,What is the derivative of x³?,numeric,,,,,3x²,1
+Grand Olympians,tiered,hard,Solve: sin(x) = 0.5,numeric,,,,,0.5236,1`;
 
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

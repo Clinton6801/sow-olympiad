@@ -123,40 +123,6 @@ export default function Home() {
 
   const currentPatternUrl = `url('${PATTERN_DATA[patternIndex]}')`;
 
-  // Generate wavy bezier path for level-up journey
-  const pathData = (() => {
-    if (sections.length === 0) return '';
-    const containerWidth = 1000; // SVG viewBox width
-    const containerHeight = 120;
-    const padding = 60;
-    const usableWidth = containerWidth - padding * 2;
-    const stepWidth = usableWidth / (sections.length - 1);
-    
-    let path = `M ${padding} ${containerHeight / 2}`;
-    
-    sections.forEach((_, i) => {
-      const x = padding + i * stepWidth;
-      // Alternate up and down
-      const baseY = containerHeight / 2;
-      const yOffset = i % 2 === 0 ? -20 : 20;
-      const y = baseY + yOffset;
-      
-      if (i === 0) {
-        path += ` L ${x} ${y}`;
-      } else {
-        // Bezier curve to smooth the wave
-        const prevX = padding + (i - 1) * stepWidth;
-        const prevYOffset = (i - 1) % 2 === 0 ? -20 : 20;
-        const prevY = baseY + prevYOffset;
-        const cp1X = prevX + stepWidth / 3;
-        const cp2X = x - stepWidth / 3;
-        path += ` C ${cp1X} ${prevY}, ${cp2X} ${y}, ${x} ${y}`;
-      }
-    });
-    
-    return path;
-  })();
-
   return (
     <div className="min-h-screen bg-white">
       {/* Header - Sticky with frosted glass effect on scroll */}
@@ -225,130 +191,8 @@ export default function Home() {
             {HERO_SUBHEADING}
           </p>
 
-          {/* Level-up Path - Winding SVG on lg+, Grid on smaller screens */}
-          <div className="mb-8 sm:mb-12 animate-fade-in px-2 sm:px-4" style={{ animationDelay: '200ms' }}>
-            {/* Large screens (1024px+): Single row with SVG connector */}
-            <div className="hidden lg:flex items-center justify-center w-full max-w-4xl mx-auto">
-              <div className="w-full flex justify-between items-center relative">
-                {/* SVG Curved Path */}
-                <svg 
-                  viewBox="0 0 1000 120" 
-                  className="absolute left-0 right-0 w-full h-24 pointer-events-none"
-                  style={{ maxWidth: '100%', height: 'auto' }}
-                >
-                  <defs>
-                    <style>{`
-                      @media (prefers-reduced-motion: no-preference) {
-                        .level-path {
-                          stroke-dasharray: 1000;
-                          stroke-dashoffset: 1000;
-                          animation: drawPath 2s ease-out forwards;
-                        }
-                        @keyframes drawPath {
-                          to { stroke-dashoffset: 0; }
-                        }
-                      }
-                      @media (prefers-reduced-motion: reduce) {
-                        .level-path {
-                          stroke-dashoffset: 0;
-                        }
-                      }
-                    `}</style>
-                  </defs>
-                  <path
-                    d={pathData}
-                    stroke="#D4D8E0"
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinecap="round"
-                    className="level-path"
-                  />
-                </svg>
-
-                {/* Nodes - single row */}
-                <div className="relative z-10 w-full flex justify-between gap-2">
-                  {sections.map((section, idx) => {
-                    const IconComponent = getIconComponent(section.icon_name);
-                    const color = section.tier_color || '#14213D';
-                    
-                    return (
-                      <Link
-                        key={section.id} 
-                        href={`/practice?section=${section.id}`}
-                        className="flex flex-col items-center group flex-1"
-                        style={{
-                          animation: `fadeInScale 0.6s ease-out forwards`,
-                          animationDelay: `${300 + idx * 50}ms`,
-                        } as React.CSSProperties}
-                      >
-                        {/* Node circle with icon */}
-                        <div 
-                          className="w-14 h-14 rounded-full flex items-center justify-center mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
-                          style={{ 
-                            backgroundColor: color,
-                            opacity: 0.95,
-                          }}
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <IconComponent size={28} stroke={2} color="white" />
-                        </div>
-                        
-                        {/* Label - full section name */}
-                        <p className="text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[80px] leading-tight">
-                          {section.name}
-                        </p>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Tablet and smaller (below 1024px): 2x3 Grid layout */}
-            <div className="lg:hidden w-full max-w-2xl mx-auto">
-              <div className="grid grid-cols-3 gap-4 sm:gap-6">
-                {sections.map((section, idx) => {
-                  const IconComponent = getIconComponent(section.icon_name);
-                  const color = section.tier_color || '#14213D';
-                  
-                  return (
-                    <Link
-                      key={section.id} 
-                      href={`/practice?section=${section.id}`}
-                      className="flex flex-col items-center group"
-                      style={{
-                        animation: `fadeInScale 0.6s ease-out forwards`,
-                        animationDelay: `${300 + idx * 50}ms`,
-                      } as React.CSSProperties}
-                    >
-                      {/* Node circle with icon */}
-                      <div 
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center mb-2 transition-all hover:shadow-lg hover:scale-110 active:scale-95 cursor-pointer shadow-md focus-ring bg-white"
-                        style={{ 
-                          backgroundColor: color,
-                          opacity: 0.95,
-                        }}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <IconComponent size={20} className="sm:hidden" stroke={2} color="white" />
-                        <IconComponent size={24} className="hidden sm:block" stroke={2} color="white" />
-                      </div>
-                      
-                      {/* Label - stacked, centered */}
-                      <p className="text-xs sm:text-sm font-display font-semibold text-ink-navy text-center whitespace-normal max-w-[70px] sm:max-w-[80px] leading-tight">
-                        {section.name}
-                      </p>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in" style={{ animationDelay: '200ms' }}>
             <Link
               href="/practice"
               className="px-6 sm:px-8 py-3 bg-leaf-green text-white font-display font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all duration-200 focus-ring text-sm sm:text-base"
@@ -421,34 +265,26 @@ export default function Home() {
       {/* Section Grid with Scroll-Reveal */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 bg-white">
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-ink-navy mb-2 sm:mb-4 text-center">
-          6 levels of challenge
+          14 levels of challenge
         </h2>
         <p className="text-center text-sm sm:text-base text-ink-navy font-body mb-8 sm:mb-12 opacity-80">
-          Find your starting point and climb to mastery
+          Find your starting point across 14 classes and climb to mastery
         </p>
 
-        {/* Grid: 2 cols on mobile, 3 cols on tablet, 6 cols on desktop */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+        {/* Grid: Adaptive columns using CSS Grid auto-fill */}
+        <div className="grid gap-4 md:gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
           {sections.map((section, idx) => {
             const IconComponent = getIconComponent(section.icon_name);
-            const isGrandMaster = section.id === sections[sections.length - 1]?.id;
             
             return (
               <ScrollRevealCard key={section.id} index={idx}>
                 <Link
                   href={`/practice?section=${section.id}`}
-                  className={`group cursor-pointer focus-ring rounded-lg transition-all duration-200 block h-full ${
-                    isGrandMaster ? 'md:col-span-1 lg:col-span-1' : ''
-                  }`}
+                  className="group cursor-pointer focus-ring rounded-lg transition-all duration-200 block h-full"
                 >
-                  <div className={`bg-white border-l-4 rounded-lg overflow-hidden h-full flex flex-col transition-all duration-150 hover:shadow-xl active:scale-95 ${
-                    isGrandMaster 
-                      ? 'scale-105 md:scale-110 lg:scale-110 shadow-lg hover:shadow-2xl' 
-                      : 'shadow-md hover:shadow-lg'
-                  }`}
+                  <div className="bg-white border-l-4 rounded-lg overflow-hidden h-full flex flex-col transition-all duration-150 hover:shadow-xl active:scale-95 shadow-md hover:shadow-lg"
                   style={{
                     borderLeftColor: section.tier_color,
-                    boxShadow: isGrandMaster ? `0 0 24px ${section.tier_color}40` : undefined,
                   }}
                   >
                     {/* Top accent bar */}
