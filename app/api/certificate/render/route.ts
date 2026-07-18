@@ -1,5 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCanvas } from 'canvas';
+import satori from 'satori';
+import { Resvg } from '@resvg/resvg-js';
+import fs from 'fs';
+import path from 'path';
+
+// Cache for font buffers (loaded once, reused for all requests)
+let fontCache: Record<string, ArrayBuffer> = {};
+
+async function getFontBuffer(fontUrl: string): Promise<ArrayBuffer> {
+  if (fontCache[fontUrl]) {
+    return fontCache[fontUrl];
+  }
+
+  const response = await fetch(fontUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch font from ${fontUrl}`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  fontCache[fontUrl] = buffer;
+  return buffer;
+}
+
+async function getLogoAsDataURI(): Promise<string> {
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'logo.jpg');
+    const logoBuffer = fs.readFileSync(logoPath);
+    const base64 = logoBuffer.toString('base64');
+    return `data:image/jpeg;base64,${base64}`;
+  } catch (err) {
+    console.warn('Could not load logo image:', err);
+    return ''; // Fallback: render without logo
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,184 +50,588 @@ export async function POST(request: NextRequest) {
       mode,
     } = body;
 
-    // Create canvas (1200x800 for print-ready resolution)
-    const canvas = createCanvas(1200, 800);
-    const ctx = canvas.getContext('2d');
+    // Fetch Google Fonts (cached after first request)
+    const serifFontBuffer = await getFontBuffer(
+      'https://fonts.gstatic.com/s/lora/v35/0QIAJa1_720pBPzIAsiIhXyXzZOvbVL2BkWLKtFdWns.ttf'
+    );
+    const sansFontBuffer = await getFontBuffer(
+      'https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu4mxK.ttf'
+    );
 
-    // Fill background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 1200, 800);
+    // Get logo as data URI
+    const logoDataURI = await getLogoAsDataURI();
 
-    // Outer dark border
-    ctx.strokeStyle = '#14213D';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(18, 18, 1200 - 36, 800 - 36);
+    const getRankDisplay = (): string => {
+      if (mode === 'practice') return 'Practice complete';
+      if (rank === 1) return '1st place';
+      if (rank === 2) return '2nd place';
+      if (rank === 3) return '3rd place';
+      return 'Participant';
+    };
 
-    // Inner gold border
-    ctx.strokeStyle = '#F4A73B';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(26, 26, 1200 - 52, 800 - 52);
+    const roundTypeDisplay =
+      round_type === 'grid'
+        ? 'Grid Round'
+        : round_type === 'tiered'
+          ? 'Tiered Round'
+          : 'Speed Sprint';
 
-    // Header section
-    ctx.fillStyle = '#14213D';
-    ctx.font = 'bold 24px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('SEAT OF WISDOM GROUP OF SCHOOLS', 600, 70);
-
-    ctx.font = '12px Arial, sans-serif';
-    ctx.fillStyle = '#999';
-    ctx.fillText('EXCELLENCE · KNOWLEDGE · CHARACTER', 600, 95);
-
-    // Decorative line with diamond
-    ctx.strokeStyle = '#14213D';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(120, 130);
-    ctx.lineTo(540, 130);
-    ctx.stroke();
-
-    ctx.fillStyle = '#F4A73B';
-    ctx.fillRect(590, 125, 20, 10); // Diamond shape (simplified)
-
-    ctx.beginPath();
-    ctx.moveTo(660, 130);
-    ctx.lineTo(1080, 130);
-    ctx.stroke();
-
-    // Gradient bar
-    const gradient = ctx.createLinearGradient(0, 150, 1200, 150);
-    gradient.addColorStop(0, '#4CAF7D');
-    gradient.addColorStop(0.33, '#6C4EE3');
-    gradient.addColorStop(0.66, '#FF6B5B');
-    gradient.addColorStop(1, '#F4A73B');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 150, 1200, 154);
-
-    // Main content area - start around y=180
-    ctx.fillStyle = '#14213D';
-    ctx.font = 'bold 40px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('CERTIFICATE OF ACHIEVEMENT', 600, 250);
-
-    ctx.font = '600 16px Arial, sans-serif';
-    ctx.fillText(`MATH OLYMPIAD — ${section_name.toUpperCase()}`, 600, 290);
-
-    ctx.font = 'italic 13px Arial, sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.fillText('This is to certify that', 600, 330);
-
-    // Recipient name
-    ctx.font = 'bold 38px Georgia, serif';
-    ctx.fillStyle = tier_color;
-    ctx.fillText(recipient_name, 600, 390);
-
-    // Rank badge background
-    ctx.fillStyle = `${tier_color}20`;
-    ctx.strokeStyle = tier_color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(300, 415, 600, 40, 20);
-    ctx.fill();
-    ctx.stroke();
-
-    // Rank text
-    ctx.font = '600 13px Arial, sans-serif';
-    ctx.fillStyle = tier_color;
-    ctx.textAlign = 'center';
-    const rankDisplay = mode === 'practice' 
-      ? 'Practice complete'
-      : rank === 1 ? '1st place' : rank === 2 ? '2nd place' : rank === 3 ? '3rd place' : 'Participant';
-    ctx.fillText(rankDisplay, 600, 442);
-
-    // Achievement text
-    ctx.fillStyle = '#666';
-    ctx.font = '13px Arial, sans-serif';
-    ctx.fillText('has demonstrated outstanding mathematical skill and achieved', 600, 485);
-
-    // Score display
-    ctx.font = 'bold 42px monospace';
-    ctx.fillStyle = '#14213D';
     const scoreDisplay = max_score ? `${score}/${max_score}` : `${score}`;
-    ctx.textAlign = 'right';
-    ctx.fillText(scoreDisplay, 550, 530);
 
-    ctx.font = '13px monospace';
-    ctx.fillStyle = '#666';
-    ctx.textAlign = 'left';
-    ctx.fillText('points', 560, 530);
-
-    // Round type
-    ctx.font = '13px Arial, sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.textAlign = 'center';
-    const roundTypeDisplay = round_type === 'grid' ? 'Grid Round' : round_type === 'tiered' ? 'Tiered Round' : 'Speed Sprint';
-    ctx.fillText(`in the ${roundTypeDisplay} Round`, 600, 565);
-
-    // Separator line
-    ctx.strokeStyle = '#14213D';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(240, 600);
-    ctx.lineTo(960, 600);
-    ctx.stroke();
-
-    // Signature section
-    ctx.font = '11px Arial, sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.textAlign = 'center';
-
-    // Left signature line
-    ctx.beginPath();
-    ctx.moveTo(300, 650);
-    ctx.lineTo(450, 650);
-    ctx.stroke();
-    ctx.fillText('Host / Teacher', 375, 675);
-
-    // Center date
     const issueDateFormatted = new Date(issue_date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-    ctx.font = '12px monospace';
-    ctx.fillStyle = '#14213D';
-    ctx.fillText(issueDateFormatted, 600, 635);
-    ctx.font = '11px Arial, sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.fillText('Date', 600, 675);
 
-    // Right signature line
-    ctx.strokeStyle = '#14213D';
-    ctx.beginPath();
-    ctx.moveTo(750, 650);
-    ctx.lineTo(900, 650);
-    ctx.stroke();
-    ctx.font = '11px Arial, sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.fillText('Principal', 825, 675);
+    // Build JSX-like object tree for satori
+    const certificateDesign = {
+      type: 'div',
+      props: {
+        style: {
+          width: '1200px',
+          height: '800px',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#ffffff',
+          position: 'relative',
+          color: '#14213D',
+          boxSizing: 'border-box',
+          fontFamily: 'Lora, serif',
+          padding: '0px',
+          margin: '0px',
+        },
+        children: [
+          // Outer dark border
+          {
+            type: 'div',
+            props: {
+              style: {
+                position: 'absolute',
+                top: '18px',
+                left: '18px',
+                right: '18px',
+                bottom: '18px',
+                border: '8px solid #14213D',
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+              },
+            },
+          },
+          // Inner gold border
+          {
+            type: 'div',
+            props: {
+              style: {
+                position: 'absolute',
+                top: '26px',
+                left: '26px',
+                right: '26px',
+                bottom: '26px',
+                border: '2px solid #F4A73B',
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+              },
+            },
+          },
+          // Left logo seal
+          ...(logoDataURI
+            ? [
+                {
+                  type: 'img',
+                  props: {
+                    src: logoDataURI,
+                    alt: '',
+                    style: {
+                      position: 'absolute',
+                      top: '36px',
+                      left: '36px',
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      border: '3px solid #F4A73B',
+                      objectFit: 'cover',
+                      zIndex: 10,
+                    },
+                  },
+                },
+              ]
+            : []),
+          // Right logo seal
+          ...(logoDataURI
+            ? [
+                {
+                  type: 'img',
+                  props: {
+                    src: logoDataURI,
+                    alt: '',
+                    style: {
+                      position: 'absolute',
+                      top: '36px',
+                      right: '36px',
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      border: '3px solid #F4A73B',
+                      objectFit: 'cover',
+                      zIndex: 10,
+                    },
+                  },
+                },
+              ]
+            : []),
+          // Header section
+          {
+            type: 'div',
+            props: {
+              style: {
+                textAlign: 'center',
+                paddingTop: '48px',
+                paddingBottom: '12px',
+                position: 'relative',
+                zIndex: 5,
+              },
+              children: [
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      color: '#14213D',
+                      letterSpacing: '0.5px',
+                      marginBottom: '4px',
+                      fontFamily: 'Lora, serif',
+                      lineHeight: '1.2',
+                    },
+                    children: 'SEAT OF WISDOM GROUP OF SCHOOLS',
+                  },
+                },
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '12px',
+                      color: '#999',
+                      letterSpacing: '1px',
+                      fontFamily: 'Roboto, sans-serif',
+                      lineHeight: '1.2',
+                    },
+                    children: 'EXCELLENCE · KNOWLEDGE · CHARACTER',
+                  },
+                },
+              ],
+            },
+          },
+          // Divider line with diamond
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                paddingLeft: '60px',
+                paddingRight: '60px',
+                marginBottom: '10px',
+                position: 'relative',
+                zIndex: 5,
+              },
+              children: [
+                { type: 'div', props: { style: { flex: 1, height: '1px', backgroundColor: '#14213D' } } },
+                { type: 'div', props: { style: { width: '9px', height: '9px', backgroundColor: '#F4A73B', transform: 'rotate(45deg)' } } },
+                { type: 'div', props: { style: { flex: 1, height: '1px', backgroundColor: '#14213D' } } },
+              ],
+            },
+          },
+          // Gradient bar (4px thin line)
+          {
+            type: 'div',
+            props: {
+              style: {
+                height: '4px',
+                background: 'linear-gradient(to right, #4CAF7D, #6C4EE3, #FF6B5B, #F4A73B)',
+                marginBottom: '14px',
+                position: 'relative',
+                zIndex: 5,
+              },
+            },
+          },
+          // Main content area
+          {
+            type: 'div',
+            props: {
+              style: {
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingLeft: '80px',
+                paddingRight: '80px',
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 5,
+                overflow: 'hidden',
+              },
+              children: [
+                // Certificate title
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '40px',
+                      fontWeight: 'bold',
+                      color: '#14213D',
+                      marginBottom: '6px',
+                      fontFamily: 'Lora, serif',
+                      lineHeight: '1.2',
+                    },
+                    children: 'CERTIFICATE OF ACHIEVEMENT',
+                  },
+                },
+                // Subtitle
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '16px',
+                      color: '#14213D',
+                      marginBottom: '12px',
+                      fontWeight: 600,
+                      fontFamily: 'Roboto, sans-serif',
+                      lineHeight: '1.2',
+                    },
+                    children: `MATH OLYMPIAD — ${section_name.toUpperCase()}`,
+                  },
+                },
+                // Intro text
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '13px',
+                      fontStyle: 'italic',
+                      color: '#666',
+                      marginBottom: '10px',
+                      fontFamily: 'Roboto, sans-serif',
+                      lineHeight: '1.2',
+                    },
+                    children: 'This is to certify that',
+                  },
+                },
+                // Recipient name
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '38px',
+                      fontWeight: 'bold',
+                      color: tier_color,
+                      marginBottom: '12px',
+                      fontFamily: 'Lora, serif',
+                      lineHeight: '1.2',
+                    },
+                    children: recipient_name,
+                  },
+                },
+                // Rank badge
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      backgroundColor: `${tier_color}20`,
+                      border: `2px solid ${tier_color}`,
+                      borderRadius: '20px',
+                      padding: '6px 14px',
+                      marginBottom: '12px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: tier_color,
+                      fontFamily: 'Roboto, sans-serif',
+                      lineHeight: '1.2',
+                    },
+                    children: getRankDisplay(),
+                  },
+                },
+                // Achievement text
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '13px',
+                      color: '#666',
+                      marginBottom: '6px',
+                      fontFamily: 'Roboto, sans-serif',
+                      lineHeight: '1.3',
+                    },
+                    children: 'has demonstrated outstanding mathematical skill and achieved',
+                  },
+                },
+                // Score display
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      marginBottom: '6px',
+                    },
+                    children: [
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            fontSize: '42px',
+                            fontWeight: 'bold',
+                            color: '#14213D',
+                            fontFamily: 'monospace',
+                            lineHeight: '1',
+                          },
+                          children: scoreDisplay,
+                        },
+                      },
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            fontSize: '13px',
+                            color: '#666',
+                            fontFamily: 'monospace',
+                            lineHeight: '1.2',
+                          },
+                          children: 'points',
+                        },
+                      },
+                    ],
+                  },
+                },
+                // Round type
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: '13px',
+                      color: '#666',
+                      fontFamily: 'Roboto, sans-serif',
+                      lineHeight: '1.2',
+                    },
+                    children: `in the ${roundTypeDisplay} Round`,
+                  },
+                },
+              ],
+            },
+          },
+          // Separator line
+          {
+            type: 'div',
+            props: {
+              style: {
+                height: '1px',
+                backgroundColor: '#14213D',
+                marginLeft: '80px',
+                marginRight: '80px',
+                position: 'relative',
+                zIndex: 5,
+              },
+            },
+          },
+          // Signature section (3-column grid)
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr',
+                gap: '40px',
+                padding: '16px 80px',
+                position: 'relative',
+                zIndex: 5,
+              },
+              children: [
+                // Left: signature line
+                {
+                  type: 'div',
+                  props: {
+                    style: { textAlign: 'center' },
+                    children: [
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            height: '1px',
+                            backgroundColor: '#14213D',
+                            marginBottom: '4px',
+                          },
+                        },
+                      },
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            fontSize: '11px',
+                            color: '#666',
+                            fontFamily: 'Roboto, sans-serif',
+                            lineHeight: '1.2',
+                          },
+                          children: 'Host / Teacher',
+                        },
+                      },
+                    ],
+                  },
+                },
+                // Center: date
+                {
+                  type: 'div',
+                  props: {
+                    style: { textAlign: 'center' },
+                    children: [
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            fontSize: '12px',
+                            color: '#14213D',
+                            marginBottom: '4px',
+                            fontFamily: 'monospace',
+                            lineHeight: '1.2',
+                          },
+                          children: issueDateFormatted,
+                        },
+                      },
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            fontSize: '11px',
+                            color: '#666',
+                            fontFamily: 'Roboto, sans-serif',
+                            lineHeight: '1.2',
+                          },
+                          children: 'Date',
+                        },
+                      },
+                    ],
+                  },
+                },
+                // Right: signature line
+                {
+                  type: 'div',
+                  props: {
+                    style: { textAlign: 'center' },
+                    children: [
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            height: '1px',
+                            backgroundColor: '#14213D',
+                            marginBottom: '4px',
+                          },
+                        },
+                      },
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            fontSize: '11px',
+                            color: '#666',
+                            fontFamily: 'Roboto, sans-serif',
+                            lineHeight: '1.2',
+                          },
+                          children: 'Principal',
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          // Decorative dots at bottom
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '12px',
+                paddingBottom: '10px',
+                position: 'relative',
+                zIndex: 5,
+              },
+              children: [0, 1, 2, 3, 4].map(() => ({
+                type: 'div',
+                props: {
+                  style: {
+                    width: '6px',
+                    height: '6px',
+                    backgroundColor: '#F4A73B',
+                    borderRadius: '50%',
+                  },
+                },
+              })),
+            },
+          },
+        ],
+      },
+    };
 
-    // Decorative dots
-    ctx.fillStyle = '#F4A73B';
-    for (let i = 0; i < 5; i++) {
-      ctx.beginPath();
-      ctx.arc(480 + i * 48, 740, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Render to SVG using satori with real fonts
+    const svg = await satori(certificateDesign as any, {
+      width: 1200,
+      height: 800,
+      fonts: [
+        {
+          name: 'Lora',
+          data: serifFontBuffer,
+          weight: 700,
+          style: 'normal',
+        },
+        {
+          name: 'Roboto',
+          data: sansFontBuffer,
+          weight: 400,
+          style: 'normal',
+        },
+        {
+          name: 'monospace',
+          data: sansFontBuffer,
+          weight: 400,
+          style: 'normal',
+        },
+      ],
+    });
 
-    // Convert to PNG buffer
-    const buffer = canvas.toBuffer('image/png');
+    // Convert SVG to PNG using resvg
+    const resvg = new Resvg(svg, {
+      fitTo: {
+        mode: 'original',
+      },
+      dpi: 96,
+    });
 
-    return new NextResponse(buffer as any, {
+    const pngBuffer = resvg.render().asPng();
+
+    // Return PNG buffer as response
+    return new NextResponse(pngBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
         'Content-Disposition': `inline; filename="certificate.png"`,
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
   } catch (err) {
     console.error('Certificate render error:', err);
     return NextResponse.json(
-      { error: 'Failed to render certificate', details: err instanceof Error ? err.message : 'Unknown error' },
+      {
+        error: 'Failed to render certificate',
+        details: err instanceof Error ? err.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }
