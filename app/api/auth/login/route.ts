@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminPassword } from '@/lib/db';
 import jwt from 'jsonwebtoken';
+import { timingSafeEqual } from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +13,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify password against database hash
-    const isValid = await verifyAdminPassword(password);
+    // Get the admin password from environment variable
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.error('ADMIN_PASSWORD environment variable not set');
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+
+    // Timing-safe comparison to prevent timing attacks
+    // Convert strings to buffers for comparison
+    const providedBuffer = Buffer.from(password || '');
+    const expectedBuffer = Buffer.from(adminPassword);
+
+    // Handle unequal lengths safely (timingSafeEqual throws if lengths differ)
+    let isValid = false;
+    try {
+      // Only call timingSafeEqual if lengths match (constant-time comparison)
+      isValid = providedBuffer.length === expectedBuffer.length && 
+                timingSafeEqual(providedBuffer, expectedBuffer);
+    } catch {
+      // Comparison failed (this shouldn't happen if length check passes, but be safe)
+      isValid = false;
+    }
 
     if (!isValid) {
       return NextResponse.json(

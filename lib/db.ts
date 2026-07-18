@@ -1,5 +1,4 @@
 import { supabase, getServerSupabase } from "./supabase";
-import bcryptjs from "bcryptjs";
 
 // Types - CLIENT-SAFE (NO correct_answer exposed)
 export interface Section {
@@ -291,29 +290,4 @@ export async function getCertificate(id: string): Promise<Certificate | null> {
   return data;
 }
 
-// Admin - SERVER-ONLY FUNCTIONS
-// These use the service role key and are only called from server-side API routes
-// NEVER call these from client-side code
-
-export async function getAdminPasswordHash(): Promise<string | null> {
-  const supabaseServer = getServerSupabase();
-  const { data, error } = await supabaseServer
-    .from("admin_credentials")
-    .select("password_hash")
-    .limit(1)
-    .single();
-  if (error) console.error("getAdminPasswordHash error:", error);
-  return data?.password_hash || null;
-}
-
-export async function verifyAdminPassword(plaintext: string): Promise<boolean> {
-  try {
-    const hash = await getAdminPasswordHash();
-    if (!hash) return false;
-
-    return await bcryptjs.compare(plaintext, hash);
-  } catch (error) {
-    console.error("verifyAdminPassword error:", error);
-    return false;
-  }
-}
+// Admin functions removed - now using direct environment variable comparison in /api/auth/login
