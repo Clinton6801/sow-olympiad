@@ -1,4 +1,4 @@
-import { supabase, supabaseServer } from "./supabase";
+import { supabase, getServerSupabase } from "./supabase";
 import bcryptjs from "bcryptjs";
 
 // Types - CLIENT-SAFE (NO correct_answer exposed)
@@ -296,6 +296,7 @@ export async function getCertificate(id: string): Promise<Certificate | null> {
 // NEVER call these from client-side code
 
 export async function getAdminPasswordHash(): Promise<string | null> {
+  const supabaseServer = getServerSupabase();
   const { data, error } = await supabaseServer
     .from("admin_credentials")
     .select("password_hash")
