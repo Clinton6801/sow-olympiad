@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 interface UseCountdownTimerProps {
-  startAt?: string; // ISO timestamp when timer started
+  startAt?: string | null; // ISO timestamp when timer started
   duration: number; // duration in seconds
   onComplete?: () => void;
 }

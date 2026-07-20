@@ -4,22 +4,14 @@ import { Resvg } from '@resvg/resvg-js';
 import fs from 'fs';
 import path from 'path';
 
-// Cache for font buffers (loaded once, reused for all requests)
-let fontCache: Record<string, ArrayBuffer> = {};
-
-async function getFontBuffer(fontUrl: string): Promise<ArrayBuffer> {
-  if (fontCache[fontUrl]) {
-    return fontCache[fontUrl];
+// Load font buffers from local files
+function getFontBuffer(filename: string): Buffer {
+  const fontPath = path.join(process.cwd(), 'assets', 'fonts', filename);
+  try {
+    return fs.readFileSync(fontPath);
+  } catch (err) {
+    throw new Error(`Failed to load font file ${filename}: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
-
-  const response = await fetch(fontUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch font from ${fontUrl}`);
-  }
-
-  const buffer = await response.arrayBuffer();
-  fontCache[fontUrl] = buffer;
-  return buffer;
 }
 
 async function getLogoAsDataURI(): Promise<string> {
@@ -50,13 +42,9 @@ export async function POST(request: NextRequest) {
       mode,
     } = body;
 
-    // Fetch Google Fonts (cached after first request)
-    const serifFontBuffer = await getFontBuffer(
-      'https://fonts.gstatic.com/s/lora/v35/0QIAJa1_720pBPzIAsiIhXyXzZOvbVL2BkWLKtFdWns.ttf'
-    );
-    const sansFontBuffer = await getFontBuffer(
-      'https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu4mxK.ttf'
-    );
+    // Load fonts from local files (no network dependency)
+    const serifFontBuffer = getFontBuffer('Lora-Bold.ttf');
+    const sansFontBuffer = getFontBuffer('Roboto-Regular.ttf');
 
     // Get logo as data URI
     const logoDataURI = await getLogoAsDataURI();
@@ -151,7 +139,6 @@ export async function POST(request: NextRequest) {
                       borderRadius: '50%',
                       border: '3px solid #F4A73B',
                       objectFit: 'cover',
-                      zIndex: 10,
                     },
                   },
                 },
@@ -174,7 +161,6 @@ export async function POST(request: NextRequest) {
                       borderRadius: '50%',
                       border: '3px solid #F4A73B',
                       objectFit: 'cover',
-                      zIndex: 10,
                     },
                   },
                 },
@@ -189,7 +175,9 @@ export async function POST(request: NextRequest) {
                 paddingTop: '48px',
                 paddingBottom: '12px',
                 position: 'relative',
-                zIndex: 5,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
               },
               children: [
                 {
@@ -236,7 +224,6 @@ export async function POST(request: NextRequest) {
                 paddingRight: '60px',
                 marginBottom: '10px',
                 position: 'relative',
-                zIndex: 5,
               },
               children: [
                 { type: 'div', props: { style: { flex: 1, height: '1px', backgroundColor: '#14213D' } } },
@@ -254,7 +241,6 @@ export async function POST(request: NextRequest) {
                 background: 'linear-gradient(to right, #4CAF7D, #6C4EE3, #FF6B5B, #F4A73B)',
                 marginBottom: '14px',
                 position: 'relative',
-                zIndex: 5,
               },
             },
           },
@@ -272,7 +258,6 @@ export async function POST(request: NextRequest) {
                 paddingRight: '80px',
                 textAlign: 'center',
                 position: 'relative',
-                zIndex: 5,
                 overflow: 'hidden',
               },
               children: [
@@ -435,28 +420,32 @@ export async function POST(request: NextRequest) {
                 marginLeft: '80px',
                 marginRight: '80px',
                 position: 'relative',
-                zIndex: 5,
               },
             },
           },
-          // Signature section (3-column grid)
+          // Signature section (3-column layout using flexbox)
           {
             type: 'div',
             props: {
               style: {
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
+                display: 'flex',
+                justifyContent: 'space-around',
                 gap: '40px',
                 padding: '16px 80px',
                 position: 'relative',
-                zIndex: 5,
               },
               children: [
                 // Left: signature line
                 {
                   type: 'div',
                   props: {
-                    style: { textAlign: 'center' },
+                    style: { 
+                      textAlign: 'center',
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                    },
                     children: [
                       {
                         type: 'div',
@@ -487,7 +476,13 @@ export async function POST(request: NextRequest) {
                 {
                   type: 'div',
                   props: {
-                    style: { textAlign: 'center' },
+                    style: { 
+                      textAlign: 'center',
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                    },
                     children: [
                       {
                         type: 'div',
@@ -521,7 +516,13 @@ export async function POST(request: NextRequest) {
                 {
                   type: 'div',
                   props: {
-                    style: { textAlign: 'center' },
+                    style: { 
+                      textAlign: 'center',
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                    },
                     children: [
                       {
                         type: 'div',
@@ -561,7 +562,6 @@ export async function POST(request: NextRequest) {
                 gap: '12px',
                 paddingBottom: '10px',
                 position: 'relative',
-                zIndex: 5,
               },
               children: [0, 1, 2, 3, 4].map(() => ({
                 type: 'div',

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSection, getQuestionsBySection } from '@/lib/db';
+import { useCountdownTimer } from '@/lib/hooks/useCountdownTimer';
 import type { Section, Question } from '@/lib/db';
 
 export default function PracticePlayer() {
@@ -14,6 +15,7 @@ export default function PracticePlayer() {
 
   const [section, setSection] = useState<Section | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]); // For Sprint reshuffle
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [score, setScore] = useState(0);
@@ -23,6 +25,28 @@ export default function PracticePlayer() {
   const [studentName, setStudentName] = useState('');
   const [nameSubmitted, setNameSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [sprintDuration, setSprintDuration] = useState(300); // 5 minutes default
+  const [sprintTimeStarted, setSprintTimeStarted] = useState<string | null>(null);
+
+  // Per-question timer for Grid and Tiered rounds (20 seconds each)
+  const [questionTimerStart, setQuestionTimerStart] = useState<string | null>(null);
+  const questionTimer = useCountdownTimer({
+    startAt: questionTimerStart,
+    duration: 20,
+    onComplete: () => {
+      // Auto-advance if no answer submitted
+      handleAutoAdvance();
+    },
+  });
+
+  // Sprint timer for Sprint rounds (full round duration)
+  const sprintTimer = useCountdownTimer({
+    startAt: sprintTimeStarted,
+    duration: sprintDuration,
+    onComplete: () => {
+      completeRound();
+    },
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -30,12 +54,38 @@ export default function PracticePlayer() {
       setSection(sectionData);
 
       const questionsData = await getQuestionsBySection(sectionId, roundType as any);
-      setQuestions(questionsData.slice(0, 20));
+      
+      // Grid/Tiered: limit to 20 questions
+      // Sprint: keep full pool available for reshuffling
+      if (roundType === 'sprint') {
+        setAllQuestions(questionsData);
+        setQuestions(questionsData);
+      } else {
+        // Grid and Tiered: always 20 questions per session
+        setQuestions(questionsData.slice(0, 20));
+      }
+      
       setLoading(false);
     };
 
     loadData();
   }, [sectionId, roundType]);
+
+  // Start per-question timer when question changes (for Grid/Tiered)
+  useEffect(() => {
+    if (nameSubmitted && !completed && questions.length > 0 && roundType !== 'sprint') {
+      const now = new Date().toISOString();
+      setQuestionTimerStart(now);
+    }
+  }, [currentIndex, nameSubmitted, completed, roundType, questions.length]);
+
+  // Start sprint timer when round begins
+  useEffect(() => {
+    if (nameSubmitted && !completed && questions.length > 0 && roundType === 'sprint') {
+      const now = new Date().toISOString();
+      setSprintTimeStarted(now);
+    }
+  }, [nameSubmitted, completed, roundType, questions.length]);
 
   const currentQuestion = questions[currentIndex];
 
@@ -46,13 +96,53 @@ export default function PracticePlayer() {
     });
   };
 
+  const handleAutoAdvance = () => {
+    if (!currentQuestion) return;
+
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      // Question pool exhausted
+      if (roundType === 'sprint' && allQuestions.length > 0) {
+        // Reshuffle Sprint questions and continue
+        const reshuffled = [...allQuestions];
+        for (let i = reshuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [reshuffled[i], reshuffled[j]] = [reshuffled[j], reshuffled[i]];
+        }
+        setQuestions(reshuffled);
+        setCurrentIndex(0);
+        // Reset responses to avoid conflicts with new pool
+        setResponses({});
+      } else {
+        // Grid/Tiered: complete round when 20 questions done
+        completeRound();
+      }
+    }
+  };
+
   const handleSubmit = () => {
     if (!currentQuestion) return;
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      completeRound();
+      // Question pool exhausted
+      if (roundType === 'sprint' && allQuestions.length > 0) {
+        // Reshuffle Sprint questions and continue
+        const reshuffled = [...allQuestions];
+        for (let i = reshuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [reshuffled[i], reshuffled[j]] = [reshuffled[j], reshuffled[i]];
+        }
+        setQuestions(reshuffled);
+        setCurrentIndex(0);
+        // Reset responses to avoid conflicts with new pool
+        setResponses({});
+      } else {
+        // Grid/Tiered: complete round when 20 questions done
+        completeRound();
+      }
     }
   };
 
@@ -119,6 +209,33 @@ export default function PracticePlayer() {
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-leaf-green focus:outline-none text-base sm:text-lg font-body mb-4 transition-colors"
               autoFocus
             />
+
+            {roundType === 'sprint' && (
+              <div className="mb-4">
+                <label className="block text-left text-sm font-body text-ink-navy mb-3 font-semibold">
+                  Sprint Duration
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { label: '3 minutes', value: 180 },
+                    { label: '5 minutes', value: 300 },
+                    { label: '10 minutes', value: 600 },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSprintDuration(option.value)}
+                      className={`w-full py-2 px-3 border-2 rounded-lg transition-all text-sm font-body ${
+                        sprintDuration === option.value
+                          ? 'border-leaf-green bg-leaf-green text-white'
+                          : 'border-gray-300 text-ink-navy hover:border-gray-400'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => {
@@ -268,23 +385,65 @@ export default function PracticePlayer() {
             <p className="text-xs opacity-75 font-body">Welcome, {studentName}</p>
           </div>
           <div className="text-right whitespace-nowrap">
-            <p className="text-xs opacity-75 font-body">Question</p>
-            <p className="text-lg sm:text-2xl font-display font-bold">
-              {currentIndex + 1} / {questions.length}
-            </p>
+            {roundType === 'sprint' ? (
+              <div>
+                <p className="text-xs opacity-75 font-body">Time Remaining</p>
+                <p
+                  className={`text-lg sm:text-2xl font-mono font-bold transition-colors ${
+                    sprintTimer.secondsRemaining <= 5 ? 'text-coral-flare' : 'text-white'
+                  }`}
+                >
+                  {sprintTimer.display}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs opacity-75 font-body">Question</p>
+                <p className="text-lg sm:text-2xl font-display font-bold">
+                  {currentIndex + 1} / {questions.length}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
-        <div className="mb-6 sm:mb-8">
-          <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-leaf-green h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-            />
+        {/* Progress bar */}
+        {roundType !== 'sprint' && (
+          <div className="mb-6 sm:mb-8">
+            <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-leaf-green h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Per-question timer for Grid/Tiered */}
+        {roundType !== 'sprint' && (
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-body text-ink-navy opacity-75">Question Timer</p>
+              <div
+                className={`text-2xl sm:text-3xl font-mono font-bold transition-colors ${
+                  questionTimer.secondsRemaining <= 5 ? 'text-coral-flare' : 'text-ink-navy'
+                }`}
+              >
+                {questionTimer.display}
+              </div>
+            </div>
+            <div className="w-full bg-gray-300 rounded-full h-1 overflow-hidden mt-2">
+              <div
+                className={`h-1 rounded-full transition-all duration-100 ${
+                  questionTimer.secondsRemaining <= 5 ? 'bg-coral-flare' : 'bg-leaf-green'
+                }`}
+                style={{ width: `${questionTimer.percentage}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
           <h2 className="text-lg sm:text-2xl md:text-3xl font-display font-bold text-ink-navy mb-6 leading-tight">

@@ -109,21 +109,30 @@ export async function getQuestionsBySection(
   roundType: "grid" | "tiered" | "sprint",
   difficulty?: "easy" | "medium" | "hard"
 ): Promise<Question[]> {
-  let query = supabase
-    .from("questions")
-    .select(
-      "id, section_id, round_type, difficulty_tier, content, answer_type, option_a, option_b, option_c, option_d, points"
-    ) // NOTE: correct_answer NOT selected
-    .eq("section_id", sectionId)
-    .eq("round_type", roundType);
+  try {
+    const params = new URLSearchParams({
+      section_id: sectionId,
+      round_type: roundType,
+    });
+    
+    if (difficulty) {
+      params.append("difficulty", difficulty);
+    }
 
-  if (difficulty) {
-    query = query.eq("difficulty_tier", difficulty);
+    // Use server-side API to ensure ORDER BY RANDOM() works
+    const response = await fetch(`/api/practice/questions?${params}`);
+    
+    if (!response.ok) {
+      console.error("getQuestionsBySection API error:", response.status);
+      return [];
+    }
+    
+    const data = await response.json();
+    return data.questions || [];
+  } catch (error) {
+    console.error("getQuestionsBySection error:", error);
+    return [];
   }
-
-  const { data, error } = await query;
-  if (error) console.error("getQuestionsBySection error:", error);
-  return data || [];
 }
 
 export async function getQuestionById(id: string): Promise<Question | null> {
