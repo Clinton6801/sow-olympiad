@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSection, getQuestionsBySection } from '@/lib/db';
@@ -27,6 +27,10 @@ export default function PracticePlayer() {
   const [error, setError] = useState('');
   const [sprintDuration, setSprintDuration] = useState(300); // 5 minutes default
   const [sprintTimeStarted, setSprintTimeStarted] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<any[]>([]);
+
+  // IDEMPOTENCY GUARD: Prevent certificate creation from firing more than once
+  const hasCompletedRef = useRef(false);
 
   // Per-question timer for Grid and Tiered rounds (20 seconds each)
   const [questionTimerStart, setQuestionTimerStart] = useState<string | null>(null);
@@ -147,6 +151,12 @@ export default function PracticePlayer() {
   };
 
   const completeRound = async () => {
+    // IDEMPOTENCY GUARD: Prevent multiple calls to certificate creation
+    if (hasCompletedRef.current) {
+      return;
+    }
+    hasCompletedRef.current = true;
+
     if (!section || !studentName) return;
 
     try {
@@ -167,15 +177,18 @@ export default function PracticePlayer() {
 
       if (!data.success) {
         setError(data.error || 'Failed to submit round');
+        hasCompletedRef.current = false; // Reset on error
         return;
       }
 
       setScore(data.final_score);
       setCertificateId(data.certificate_id);
+      setAnswers(data.answers || []);
       setCompleted(true);
     } catch (err) {
       setError('An error occurred while submitting the round');
       console.error(err);
+      hasCompletedRef.current = false; // Reset on error
     }
   };
 
@@ -325,6 +338,9 @@ export default function PracticePlayer() {
   }
 
   if (completed) {
+    const wrongAnswers = answers.filter((a) => !a.is_correct);
+    const allCorrect = wrongAnswers.length === 0;
+
     return (
       <div className="min-h-screen bg-graph-paper">
         <header className="bg-ink-navy text-white sticky top-0 z-40 shadow-lg">
@@ -337,20 +353,57 @@ export default function PracticePlayer() {
 
         <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-ink-navy mb-3 sm:mb-4">
-            🎉 Round Complete!
+            🎉 Round Complete
           </h2>
 
           <div
             className="mt-8 sm:mt-12 p-6 sm:p-8 rounded-lg text-white mb-6 sm:mb-8 shadow-lg"
-            style={{ backgroundColor: section.tier_color }}
+            style={{ backgroundColor: section?.tier_color }}
           >
             <p className="text-sm sm:text-base font-body mb-2 opacity-90">Your Score</p>
             <p className="text-5xl sm:text-6xl font-display font-bold">{score}</p>
             <p className="text-sm sm:text-base font-body mt-2 opacity-90">points</p>
           </div>
 
+          {/* Review incorrect answers section */}
+          <div className="mb-8">
+            {allCorrect ? (
+              // Perfect score empty state
+              <div className="bg-leaf-green bg-opacity-10 border-2 border-leaf-green rounded-lg p-6 sm:p-8 text-center">
+                <p className="text-2xl sm:text-3xl mb-2">✓</p>
+                <p className="text-ink-navy font-display font-bold text-lg sm:text-xl mb-2">Perfect score!</p>
+                <p className="text-ink-navy font-body text-sm sm:text-base opacity-75">Nothing to review</p>
+              </div>
+            ) : (
+              // Show wrong answers
+              <div>
+                <h3 className="text-left text-lg sm:text-xl font-display font-bold text-ink-navy mb-4">Review your answers</h3>
+                <div className="space-y-4">
+                  {wrongAnswers.map((answer, idx) => (
+                    <div key={answer.question_id} className="bg-white rounded-lg p-4 sm:p-6 shadow-md text-left">
+                      <div className="mb-3">
+                        <p className="text-xs sm:text-sm text-ink-navy opacity-75 font-body mb-1">Question {idx + 1}</p>
+                        <p className="text-sm sm:text-base font-body text-ink-navy">{answer.content}</p>
+                      </div>
+
+                      <div className="bg-coral-flare bg-opacity-10 border-l-4 border-coral-flare rounded px-3 sm:px-4 py-2 sm:py-3 mb-3">
+                        <p className="text-xs font-body text-ink-navy opacity-75 mb-1">Your answer</p>
+                        <p className="text-sm sm:text-base font-mono font-semibold text-coral-flare">{answer.student_answer}</p>
+                      </div>
+
+                      <div className="bg-leaf-green bg-opacity-10 border-l-4 border-leaf-green rounded px-3 sm:px-4 py-2 sm:py-3">
+                        <p className="text-xs font-body text-ink-navy opacity-75 mb-1">Correct answer</p>
+                        <p className="text-sm sm:text-base font-mono font-semibold text-leaf-green">{answer.correct_answer}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-lg p-6 sm:p-8 mb-6 sm:mb-8 shadow-md">
-            <p className="text-ink-navy font-body mb-4 text-sm sm:text-base opacity-75">Your certificate has been generated!</p>
+            <p className="text-ink-navy font-body mb-4 text-sm sm:text-base opacity-75">Your certificate has been generated</p>
             {certificateId && (
               <Link
                 href={`/certificate/${certificateId}`}

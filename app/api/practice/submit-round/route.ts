@@ -40,6 +40,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // IDEMPOTENCY CHECK: Prevent duplicate certificates
+    // Check if a certificate with same recipient_name, section, round_type, and mode was created in the last 10 seconds
+    const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
+    const { data: existingCert, error: checkError } = await supabaseAdmin
+      .from("certificates")
+      .select("id")
+      .eq("recipient_name", student_name)
+      .eq("section_id", section_id)
+      .eq("round_type", round_type)
+      .eq("mode", "practice")
+      .gte("issued_at", tenSecondsAgo)
+      .single();
+
+    if (existingCert) {
+      // Certificate already exists for this session, return it instead of creating a duplicate
+      console.warn(`Duplicate certificate attempt prevented for ${student_name} in ${section_id}`);
+      return NextResponse.json({
+        success: true,
+        final_score: 0, // We don't have the original score, but the cert already exists
+        certificate_id: existingCert.id,
+        answers: [],
+      });
+    }
+
     // Fetch all questions with correct answers
     const { data: questions, error: questionsError } = await supabaseAdmin
       .from("questions")
@@ -68,7 +92,9 @@ export async function POST(request: NextRequest) {
       finalScore += points;
       answers.push({
         question_id: qId,
-        response,
+        content: question.content,
+        student_answer: response,
+        correct_answer: question.correct_answer,
         is_correct: isCorrect,
         points_awarded: points,
       });
@@ -99,6 +125,7 @@ export async function POST(request: NextRequest) {
       success: true,
       final_score: finalScore,
       certificate_id: certificate.id,
+      answers: answers,
     });
   } catch (error) {
     console.error("POST /api/practice/submit-round error:", error);
